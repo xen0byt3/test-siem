@@ -202,7 +202,7 @@ body.dark .card::after{
 
 /* LOGS */
 .log-box{
-  height:260px;
+  height:300px;
   overflow:auto;
   background:#ffffff;
   color:#111; /* force black text */
@@ -811,6 +811,54 @@ body.dark .chain-step{
 }
 body.dark .packet-tag{ background:#1f2937; }
 
+/* TERMINAL INPUT BAR */
+.terminal-input{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  width:100%;
+  margin-bottom:8px;
+  background:#020617;
+  border:1px solid #1e293b;
+  border-radius:10px;
+  padding:8px;
+}
+
+/* PROMPT TEXT */
+.prompt{
+  color:#22c55e;
+  font-family:monospace;
+  font-size:12px;
+  white-space:nowrap;
+}
+
+/* INPUT FIELD */
+.terminal-input input{
+  flex:1;
+  background:transparent;
+  border:none;
+  outline:none;
+  color:#38bdf8;
+  font-family:monospace;
+  font-size:12px;
+}
+
+/* PLACEHOLDER STYLE */
+.terminal-input input::placeholder{
+  color:#64748b;
+}
+
+/* DARK MODE (optional tweak) */
+body.dark .terminal-input{
+  background:#000;
+  border:1px solid #1e293b;
+}
+
+.terminal-input:focus-within{
+  border:1px solid #38bdf8;
+  box-shadow:0 0 8px rgba(56,189,248,0.4);
+}
+
 </style>
 </head>
 <body>
@@ -846,7 +894,7 @@ developed by xen0_byt3
     <div>
       <div class="metric-label">Total</div>
       <!-- TOTAL -->
-      <div class="metric-value blue-text" id="threats">176957</div>
+      <div class="metric-value blue-text" id="threats">0</div>
     </div>
   </div>
 
@@ -858,7 +906,7 @@ developed by xen0_byt3
       <div class="metric-label">Level 12+</div>
       
       <!-- LEVEL 12+ -->
-      <div class="metric-value orange-text" id="lvl12">9</div>
+      <div class="metric-value orange-text" id="lvl12">0</div>
     </div>
   </div>
 
@@ -869,7 +917,7 @@ developed by xen0_byt3
     <div>
       <div class="metric-label">Auth Failure</div>
       <!-- AUTH FAILURE -->
-      <div class="metric-value red-text" id="fail">33882</div>
+      <div class="metric-value red-text" id="fail">0</div>
     </div>
   </div>
 
@@ -880,7 +928,7 @@ developed by xen0_byt3
     <div>
       <div class="metric-label">Auth Success</div>      
       <!-- AUTH SUCCESS -->
-      <div class="metric-value green-text" id="success">45</div>
+      <div class="metric-value green-text" id="success">0</div>
     </div>
   </div>
 </div>
@@ -903,14 +951,19 @@ developed by xen0_byt3
   <!-- TERMINAL -->
   <div class="card">
     <h4>Terminal</h4>
-    <div class="terminal">
-      <div id="output"></div>
-      <div style="display:flex;gap:6px;margin-top:6px;">
-        <span style="color:#22c55e;">xen0byt3@siem:~$</span>
-        <input id="cmd" placeholder="search failed | stats count" onkeydown="runCmd(event)">
-      </div>
+
+    <!-- INPUT -->
+    <div class="terminal-input">
+      <input id="cmd" placeholder="Enter search here . . ." onkeydown="runCmd(event)">
+    </div>
+
+    <!-- TERMINAL OUTPUT -->
+    <div class="terminal" id="terminal">
+      <div id="terminalContent"></div>
     </div>
   </div>
+
+  
 
   <!-- RULES -->
   <div class="card">
@@ -983,6 +1036,10 @@ developed by xen0_byt3
 </div>
 
 <script>
+let totalCount = 0;
+let level12Count = 0;
+let failCount = 0;
+let successCount = 0;
 setInterval(pushPacket, 800);
 
 let currentStageIndex = 0;
@@ -1182,6 +1239,35 @@ function addLog(){
   `;
 
   let lower = l.toLowerCase();
+
+// TOTAL LOGS
+totalCount++;
+
+// AUTH FAILURE
+if(lower.includes("failed password")){
+  failCount++;
+}
+
+// AUTH SUCCESS
+if(lower.includes("accepted password")){
+  successCount++;
+}
+
+// 🔥 LEVEL 12+ (HIGH SEVERITY SIMULATION)
+if(
+  lower.includes("ransomware") ||
+  lower.includes("ddos") ||
+  lower.includes("c2") ||
+  lower.includes("exfiltration")
+){
+  level12Count++;
+}
+
+threats.textContent = totalCount;
+fail.textContent = failCount;
+success.textContent = successCount;
+lvl12.textContent = level12Count;
+
   updateAttackChain(lower);
   updateTechniqueCounter(lower);
   updateAIScore(lower);
@@ -1223,53 +1309,53 @@ logs.appendChild(div);
 }
 
 setInterval(addLog,1000);
-setInterval(()=>{threats.textContent++;fail.textContent++;success.textContent++;},1000);
-setInterval(()=>lvl12.textContent++,15000);
 
 function runCmd(e){
   if(e.key === 'Enter'){
-    let query = cmd.value.toLowerCase().trim();
-    let result = [];
+    let raw = cmd.value.trim();
+    let query = raw.toLowerCase();
 
-    // CLEAR
+    appendToTerminal(`xen0byt3@siem:~$ ${raw}`, "command");
+
     if(query === "clear"){
-      output.innerHTML = "";
+      terminalContent.innerHTML = "";
       cmd.value = "";
       return;
     }
 
-    // SEARCH
-    if(query.startsWith("search")){
-      let keyword = query.split(" ")[1];
+    let parts = query.split("|").map(p => p.trim());
 
-      result = logsData.filter(log =>
-        log.toLowerCase().includes(keyword)
-      );
+    let result = logsData;
 
-      printOutput(result);
-      highlightSearch(keyword);
-    }
+    parts.forEach(part => {
 
-    // STATS COUNT
-    else if(query === "stats count"){
-      printOutput([`Total Logs: ${logsData.length}`]);
-    }
+      // SEARCH
+      if(part.startsWith("search")){
+        let keyword = part.split(" ")[1];
+        result = result.filter(log =>
+          log.toLowerCase().includes(keyword)
+        );
+      }
 
-    // STATS BY KEYWORD
-    else if(query.startsWith("stats")){
-      let keyword = query.split(" ")[1];
+      // COUNT
+      else if(part === "stats count"){
+        result = [`Count: ${result.length}`];
+      }
 
-      let count = logsData.filter(log =>
-        log.toLowerCase().includes(keyword)
-      ).length;
+      // TOP IP
+      else if(part === "top ip"){
+        result = topIP(result);
+      }
 
-      printOutput([`${keyword}: ${count}`]);
-    }
+      // TIME (SIMPLIFIED: LAST N LOGS)
+      else if(part.startsWith("time")){
+        let num = parseInt(part.split(" ")[1]);
+        result = result.slice(-num);
+      }
 
-    else{
-      printOutput(["Invalid query!"]);
-    }
+    });
 
+    appendLines(result);
     cmd.value = "";
   }
 }
@@ -1705,6 +1791,55 @@ function pushPacket(){
   updateTechniqueCounter(pkt.raw.toLowerCase());
   highlightMitreMatrix(pkt.raw.toLowerCase());
 }
+
+function appendToTerminal(text, type="output"){
+  let div = document.createElement("div");
+
+  if(type === "command"){
+    div.style.color = "#22c55e";
+  }
+
+  div.textContent = text;
+  terminalContent.appendChild(div);
+
+  // auto scroll
+  terminal.scrollTop = terminal.scrollHeight;
+}
+
+function appendLines(lines){
+  lines.forEach(line=>{
+    appendToTerminal(line);
+  });
+}
+
+function topIP(data){
+  let ipCount = {};
+
+  data.forEach(log=>{
+    let match = log.match(/\b\d+\.\d+\.\d+\.\d+\b/);
+    if(match){
+      let ip = match[0];
+      ipCount[ip] = (ipCount[ip] || 0) + 1;
+    }
+  });
+
+  let sorted = Object.entries(ipCount)
+    .sort((a,b)=>b[1]-a[1])
+    .slice(0,5);
+
+  return sorted.map(([ip,count]) => `${ip} → ${count}`);
+}
+
+function animateMetric(id){
+  let el = document.getElementById(id);
+  el.style.transform = "scale(1.2)";
+  setTimeout(()=>el.style.transform="scale(1)",200);
+}
+
+animateMetric("fail");
+animateMetric("success");
+animateMetric("lvl12");
+
 </script>
 
 <!-- INVESTIGATION MODAL -->
