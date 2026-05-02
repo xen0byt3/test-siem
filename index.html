@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" type="image/x-icon" href="logo/avc.png">
+<title>adoVM CYBERLAB</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+<link rel="stylesheet" href="style.css">
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+</head>
+<body>
+
+<div id="alertBanner" class="alert-banner">
+  ⚠️ CRITICAL ALERT DETECTED
+</div>
+
+<header class="header">
+  <div class="logo">
+<pre>
+▄▀█ █▀▄ █▀█ █░█ █▀▄▀█   █▀▀ █▄█ █▄▄ █▀▀ █▀█   █░░ ▄▀█ █▄▄
+█▀█ █▄▀ █▄█ ▀▄▀ █░▀░█   █▄▄ ░█░ █▄█ ██▄ █▀▄   █▄▄ █▀█ █▄█
+<div class="tagline">developed by xen0_byt3</div>
+</pre>
+
+  <div class="status" id="statusIndicator">
+    <span class="dot"></span>
+    <span id="statusText">Monitoring Active</span>
+    <!-- SIEM BADGE -->
+    <div class="siem-badge disconnected" id="siemStatus">
+      SIEM Disconnected
+    </div>
+    <!-- CLOCK -->
+    <div class="clock" id="clock"></div>
+  </div>
+  </div>
+  
+</header>
+
+
+<div class="header">
+  <h2 style="margin:0;font-weight:600;letter-spacing:1px;">
+    Threat Hunting Dashboard
+  </h2>
+
+  <!-- TOGGLE SWITCH -->
+  <div class="theme-toggle" onclick="toggleTheme()" id="themeBtn">
+    <div class="toggle-circle"></div>
+  </div>
+</div>
+
+<div class="container">
+
+<!-- METRICS -->
+<div class="card metrics-card">
+  <div class="metric-box">
+    <div class="metric-icon blue"><img src="logo/encrypted.png" alt="Total Threats" style="width:24px; height:24px;"></div>
+    <div>
+      <div class="metric-label">Total</div>
+      <!-- TOTAL -->
+      <div class="metric-value blue-text" id="threats">0</div>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <div class="metric-box">
+    <div class="metric-icon orange"><img src="logo/crisis.png" alt="Level 12+" style="width:24px; height:24px;"></div>
+    <div>
+      <div class="metric-label">Level 12+</div>
+      
+      <!-- LEVEL 12+ -->
+      <div class="metric-value orange-text" id="lvl12">0</div>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <div class="metric-box">
+    <div class="metric-icon red"><img src="logo/padlock.png" alt="Auth Failure" style="width:24px; height:24px;"></div>
+    <div>
+      <div class="metric-label">Auth Failure</div>
+      <!-- AUTH FAILURE -->
+      <div class="metric-value red-text" id="fail">0</div>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <div class="metric-box">
+    <div class="metric-icon green"><img src="logo/check-mark.png" alt="Auth Success" style="width:24px; height:24px;"></div>
+    <div>
+      <div class="metric-label">Auth Success</div>      
+      <!-- AUTH SUCCESS -->
+      <div class="metric-value green-text" id="success">0</div>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <h4>AI Threat Intelligence Score</h4>
+  <div style="display:flex;align-items:center;gap:12px;">
+    <div style="font-size:32px;font-weight:bold;" id="aiScore">0</div>
+    <div>
+      <div style="font-size:12px;color:#6b7280;">Current Event Risk</div>
+      <div style="height:8px;width:200px;background:#e5e7eb;border-radius:10px;overflow:hidden;">
+        <div id="aiBar" style="height:100%;width:0%;background:#22c55e;"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- TOP ROW (3 PANELS) -->
+<div class="row">
+  <!-- TERMINAL -->
+  <div class="card">
+    <h4>Terminal</h4>
+
+    <!-- INPUT -->
+    <div class="terminal-input">
+      <input id="cmd" placeholder="Enter search here . . ." onkeydown="runCmd(event)">
+    </div>
+
+    <!-- TERMINAL OUTPUT -->
+    <div class="terminal" id="terminal">
+      <div id="terminalContent"></div>
+    </div>
+  </div>
+
+  
+
+  <!-- RULES -->
+  <div class="card">
+    <h4>Detection Rules (SIEM Engine)</h4>
+    <div id="rulesPanel"></div>
+  </div>
+
+  <!-- ATTACK SIM -->
+  <div class="card">
+    <h4>Live Threats</h4>
+    <div id="logs" class="log-box"></div>
+  </div>
+</div>
+
+<div class="card">
+  <h4>Real-Time Packet Stream</h4>
+  <div id="packetStream" class="log-box"></div>
+</div>
+
+<div class="card">
+  <h4>Incident Summary Report</h4>
+
+    <div id="reportPanel" class="report-header">
+
+    <div class="stat">
+      <span></span>
+      <label>Total</label>
+      <strong id="repTotal">0</strong>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="stat open">
+      <span></span>
+      <label>Open</label>
+      <strong id="repOpen">0</strong>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="stat resolved">
+      <span></span>
+      <label>Resolved</label>
+      <strong id="repResolved">0</strong>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="stat progress">
+      <span></span>
+      <label>Rate</label>
+      <strong id="repPercent">0%</strong>
+
+      <div class="mini-bar">
+        <div id="repBar"></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div class="report-item escalation">
+  <div class="card-header">
+    <span>Escalated Incidents</span>
+
+    <div class="header-actions">
+      <span class="badge" id="repEscalated">0</span>
+      <button class="export-btn" onclick="exportTickets()">Export CSV</button>
+    </div>
+  </div>
+
+  <div id="escalationList" class="escalation-list">
+    <small>No escalated incidents</small>
+  </div>
+</div>
+
+<div id="incidentPanel" style="margin-top:10px;">
+  <h3><img src="logo/siren.png" alt="SOC Incidents" style="width:25px; height:25px;"> SOC Incidents</h3>
+  <button id="createTicketBtn" onclick="openTicketModal()" class="export-btn" disabled style="
+    margin-bottom:10px;
+    padding:6px 12px;
+    background:#22c55e;
+    color:white;
+    border:none;
+    border-radius:6px;
+    cursor:pointer;
+  ">
+    + Create Ticket
+  </button>
+  <div id="incidentList"></div>
+</div>
+
+<div class="card">
+  <h4>SOC Ticket Queue</h4>
+
+  <div class="queue-board">
+
+    <div class="queue-column">
+      <h4 class="status-open"><span class="status-dot"></span> OPEN</h4>
+      <div id="queueOpen"></div>
+    </div>
+
+    <div class="queue-column">
+      <h4 class="status-progress"><span class="status-dot"></span> IN PROGRESS</h4>
+      <div id="queueProgress"></div>
+    </div>
+
+    <div class="queue-column">
+      <h4 class="status-escalated"><span class="status-dot"></span> ESCALATED</h4>
+      <div id="queueEscalated"></div>
+    </div>
+
+    <div class="queue-column">
+      <h4 class="status-resolved"><span class="status-dot"></span> RESOLVED</h4>
+      <div id="queueResolved"></div>
+    </div>
+
+  </div>
+</div>
+
+<div class="card">
+  <h4>Top Attacker Countries</h4>
+  <div id="countryBoard"></div>
+</div>
+
+<div class="card">
+  <h4>GeoIP Attack Map</h4>
+  <div id="map" style="height:300px;border-radius:10px;"></div>
+</div>
+
+
+<!-- ALERTS + MITRE (CAROUSEL) -->
+<div class="chart-carousel">
+  <div class="chart-track">
+
+    <div class="card">
+      <h4>Alerts Level Evolution</h4>
+      <div class="canvas-wrap"><canvas id="areaChart"></canvas></div>
+    </div>
+
+    <div class="card">
+      <h4>MITRE ATT&CK</h4>
+      <div class="canvas-wrap"><canvas id="mitreChart"></canvas></div>
+    </div>
+
+  </div>
+</div>
+
+<!-- PIE + BAR (CAROUSEL) -->
+<div class="chart-carousel">
+  <div class="chart-track">
+
+    <div class="card">
+      <h4>Top 5 Agents</h4>
+      <div class="canvas-wrap"><canvas id="pieChart"></canvas></div>
+    </div>
+
+    <div class="card">
+      <h4>Alerts - Top Agents</h4>
+      <div class="canvas-wrap"><canvas id="barChart"></canvas></div>
+    </div>
+
+  </div>
+</div>
+
+<div class="card">
+  <h4>Attack Chain</h4>
+  <div id="attackChain" class="attack-chain"></div>
+</div>
+
+<div class="card">
+    <h4>Detected Techniques Counter</h4>
+    <div id="techCounter"></div>
+</div>
+
+<!-- TIMELINE -->
+<div class="card">
+  <h4>Attack Timeline</h4>
+  <div class="canvas-wrap"><canvas id="timelineChart"></canvas></div>
+</div>
+
+</div>
+
+<!-- INVESTIGATION MODAL -->
+<div id="investigationModal" class="modal">
+  <div class="modal-content">
+    <span class="close-btn" onclick="closeModal()">✖</span>
+
+    <h3>🔍 Log Investigation</h3>
+
+    <div class="modal-body">
+      <p><strong>MITRE ATT&CK:</strong> <span id="modalMitre"></span></p>
+      <p><strong>Timestamp:</strong> <span id="modalTime"></span></p>
+      <p><strong>Event:</strong></p>
+      <pre id="modalLog"></pre>
+
+      <p><strong>Detected Rule:</strong> <span id="modalRule"></span></p>
+      <p><strong>Severity:</strong> <span id="modalSeverity"></span></p>
+    </div>
+  </div>
+</div>
+
+<div id="incidentModal" style="
+  display:none;
+  position:fixed;
+  top:0;left:0;
+  width:100%;height:100%;
+  background:rgba(0,0,0,0.7);
+  justify-content:center;
+  align-items:center;
+">
+  <div style="
+    background:#0f172a;
+    padding:20px;
+    width:400px;
+    border-radius:8px;
+  ">
+    <h3 id="incTitle"></h3>
+    <p id="incIP"></p>
+    <p id="incSeverity"></p>
+    <p id="incStatus"></p>
+    <p id="incAnalyst"></p>
+    <p id="incTime"></p>
+    <div id="incLogs" style="max-height:150px;overflow:auto;"></div>
+
+    <button onclick="closeIncident()">Close</button>
+    <button onclick="resolveIncident()">Resolve</button>
+  </div>
+</div>
+
+<div id="ticketModal" class="modal">
+  <div class="modal-content">
+    <span class="close-btn" onclick="closeTicketModal()">✖</span>
+
+    <h3>🎟 Create Incident Ticket</h3>
+
+    <div class="modal-body">
+
+      <label>Severity</label>
+      <select id="ticketSeverity">
+        <option>LOW</option>
+        <option>MEDIUM</option>
+        <option>HIGH</option>
+        <option selected>CRITICAL</option>
+      </select>
+
+      <label>Threat Source</label>
+      <select id="ticketSource">
+        <option>APT Detection</option>
+        <option>Brute Force Attack</option>
+        <option>Phishing Campaign</option>
+        <option>C2 Beaconing</option>
+        <option>Ransomware Activity</option>
+        <option>Data Exfiltration</option>
+        <option>Insider Threat</option>
+        <option>Privilege Escalation</option>
+        <option>Malware Infection</option>
+        <option>Suspicious Login</option>
+      </select>
+
+      <label>Assign Analyst</label>
+      <select id="ticketAnalyst">
+        <option>Analyst-01</option>
+        <option>Analyst-02</option>
+        <option>Analyst-03</option>
+        <option>Tier-2 SOC</option>
+      </select>
+
+      <label>Notes</label>
+      <textarea id="ticketNotes" placeholder="Enter investigation notes..."></textarea>
+
+      <button onclick="submitTicket()" style="
+        margin-top:10px;
+        width:100%;
+        padding:10px;
+        background:#22c55e;
+        border:none;
+        border-radius:6px;
+        color:white;
+        font-weight:bold;
+        cursor:pointer;
+      ">
+        Create Ticket
+      </button>
+
+    </div>
+  </div>
+</div>
+
+<div id="ticketPanel" class="ticket-panel hidden">
+  <div class="ticket-content">
+    <h3 id="ticketTitle">Ticket</h3>
+    <p id="ticketDetails"></p>
+    <button onclick="closeTicket()">Close</button>
+  </div>
+</div>
+
+<script src="js/script.js"></script>
+</body>
+</html>
